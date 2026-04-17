@@ -1,6 +1,9 @@
 # SecondBrain (2Brain) Desktop
 
-KI-gestuetztes persoenliches Wissensmanagementsystem. Verwandelt Rohdaten (PDFs, DOCX, Texte, HTML) mithilfe der Claude API in ein strukturiertes, verlinktes Markdown-Wiki.
+Dein **Second Brain** auf dem Desktop — lokal-first, KI-gestuetzt, Git-versioniert.
+Wirft rohe Notizen, PDFs, DOCX oder HTML-Dokumente hinein und laesst Claude daraus ein strukturiertes, verlinktes Markdown-Wiki bauen. Deine Daten bleiben auf deiner Festplatte, jede Aenderung ist ein Git-Commit.
+
+> Projekt-Website: [**docs/index.html**](docs/index.html) · GitHub Pages: `main` + `/docs`
 
 ## Features
 
@@ -65,7 +68,7 @@ Renderer (React)  <--IPC-->  Main (Node.js)  <--Git-->  Remote Repo
 Das Repo enthaelt bewusst zwei HTML-Einstiegspunkte mit unterschiedlichem Zweck:
 
 - **`./index.html`** — Vite-Entry fuer den Electron-Renderer. Laedt `src/renderer/main.tsx` und wird **nur** von der Desktop-App zur Laufzeit benoetigt. Nicht manuell oeffnen.
-- **`./website/index.html`** — Standalone Landingpage (Englisch, ohne Build-Step). Dient der Projekt-Praesentation und kann z.B. als GitHub-Pages-Quelle genutzt werden.
+- **`./docs/index.html`** — Standalone Landingpage (Englisch, ohne Build-Step). Wird ueber GitHub Pages (Source: `main` + `/docs`) als Projekt-Website ausgeliefert.
 
 Wer beim Klonen direkt `index.html` im Browser oeffnet, sieht nur den Lade-Placeholder der App. Die eigentliche UI laeuft ueber `npm run dev` in Electron.
 
