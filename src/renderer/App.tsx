@@ -13,6 +13,7 @@ import { LintPage } from './pages/LintPage';
 import { OutputPage } from './pages/OutputPage';
 import { BrandPage } from './pages/BrandPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { ChangesPage } from './pages/ChangesPage';
 import { api, hasApi } from './api/bridge';
 import { useProjectStore } from './stores/project.store';
 import { useGitStore } from './stores/git.store';
@@ -188,6 +189,7 @@ export function App() {
                 <Route path="/lint" element={<LintPage />} />
                 <Route path="/output/*" element={<OutputPage />} />
                 <Route path="/brand" element={<BrandPage />} />
+                <Route path="/changes" element={<ChangesPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
               </Route>
               <Route path="*" element={<Navigate to="/dashboard" replace />} />

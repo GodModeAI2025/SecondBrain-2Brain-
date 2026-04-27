@@ -55,6 +55,7 @@ export function SettingsPage() {
   const [newProjectDomain, setNewProjectDomain] = useState('');
   const [newProjectLanguage, setNewProjectLanguage] = useState('de');
   const [creatingProject, setCreatingProject] = useState(false);
+  const [creatingDemoProject, setCreatingDemoProject] = useState(false);
   const [deletingProject, setDeletingProject] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [syncStates, setSyncStates] = useState<Record<string, boolean>>({});
@@ -204,6 +205,20 @@ export function SettingsPage() {
       addNotification('error', 'Fehler beim Erstellen des Projekts');
     } finally {
       setCreatingProject(false);
+    }
+  };
+
+  const handleCreateDemoProject = async () => {
+    setCreatingDemoProject(true);
+    try {
+      const project = await api.project.createDemo();
+      await loadProjects();
+      await setActiveProject(project.name);
+      addNotification('success', `Demo "${project.name}" erstellt`);
+    } catch (err) {
+      addNotification('error', 'Fehler beim Erstellen des Demo-Wissensraums');
+    } finally {
+      setCreatingDemoProject(false);
     }
   };
 
@@ -528,12 +543,22 @@ export function SettingsPage() {
               </div>
             </div>
           ) : (
-            <button
-              className="btn btn-secondary"
-              onClick={() => setShowCreateProject(true)}
-            >
-              + Neues Projekt
-            </button>
+            <div className="settings-project-actions">
+              <button
+                className="btn btn-secondary"
+                onClick={() => setShowCreateProject(true)}
+                disabled={creatingDemoProject}
+              >
+                + Neues Projekt
+              </button>
+              <button
+                className="btn btn-secondary"
+                onClick={handleCreateDemoProject}
+                disabled={creatingDemoProject}
+              >
+                {creatingDemoProject ? 'Erstelle...' : 'Demo-Wissensraum'}
+              </button>
+            </div>
           )}
         </div>
 

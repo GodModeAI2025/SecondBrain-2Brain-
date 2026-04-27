@@ -5,6 +5,7 @@ import { join, basename } from 'path';
 import { existsSync } from 'fs';
 import { getReposDir } from '../util/paths';
 import { SettingsService } from './settings.service';
+import type { GitChange, GitChangeState, GitCommitInfo } from '../../shared/api.types';
 
 let repoDir: string | null = null;
 
@@ -16,6 +17,28 @@ function getAuth() {
 function ensureRepoDir(): string {
   if (!repoDir) throw new Error('Kein Repository geklont. Bitte zuerst ein Repository klonen.');
   return repoDir;
+}
+
+function projectFromPath(filepath: string): string {
+  return filepath.split('/')[0] || '';
+}
+
+function areaFromPath(filepath: string): string {
+  const parts = filepath.split('/');
+  return parts[1] || 'root';
+}
+
+function changeState(head: number, workdir: number, stage: number): GitChangeState {
+  if (head === 0 && workdir === 2) return 'added';
+  if (head === 1 && workdir === 0) return 'deleted';
+  if (head !== stage) return 'staged';
+  if (head !== workdir || workdir !== stage) return 'modified';
+  return 'unchanged';
+}
+
+function commitDate(timestamp: number, timezoneOffset: number): string {
+  const offsetMs = timezoneOffset * 60 * 1000;
+  return new Date((timestamp * 1000) - offsetMs).toISOString();
 }
 
 export const GitService = {
@@ -114,6 +137,41 @@ export const GitService = {
       return statusMatrix
         .filter(([, head, workdir]) => head !== workdir)
         .map(([filepath]) => filepath);
+    } catch {
+      return [];
+    }
+  },
+
+  async listChanges(): Promise<GitChange[]> {
+    try {
+      const dir = ensureRepoDir();
+      const statusMatrix = await git.statusMatrix({ fs, dir });
+      return statusMatrix
+        .map(([filepath, head, workdir, stage]) => ({
+          path: filepath,
+          project: projectFromPath(filepath),
+          area: areaFromPath(filepath),
+          state: changeState(head, workdir, stage),
+          staged: head !== stage,
+        }))
+        .filter((change) => change.state !== 'unchanged')
+        .sort((a, b) => a.path.localeCompare(b.path));
+    } catch {
+      return [];
+    }
+  },
+
+  async listRecentCommits(limit = 12): Promise<GitCommitInfo[]> {
+    try {
+      const dir = ensureRepoDir();
+      const commits = await git.log({ fs, dir, depth: Math.max(1, Math.floor(limit)) });
+      return commits.map((entry) => ({
+        oid: entry.oid,
+        message: entry.commit.message.split('\n')[0] || '(ohne Nachricht)',
+        authorName: entry.commit.author.name || '',
+        authorEmail: entry.commit.author.email || '',
+        date: commitDate(entry.commit.author.timestamp, entry.commit.author.timezoneOffset),
+      }));
     } catch {
       return [];
     }

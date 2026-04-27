@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../api/bridge';
 import { useProjectStore } from '../stores/project.store';
 import { useAppStore } from '../stores/app.store';
@@ -6,12 +7,18 @@ import { useIngestStore, type IngestSummary } from '../stores/ingest.store';
 import { IngestProgress } from '../components/ingest/IngestProgress';
 import { TakeawayList } from '../components/ingest/TakeawayList';
 import { useWikiStore } from '../stores/wiki.store';
-import type { PendingStub } from '../../shared/api.types';
+import type { PendingStub, WikiPageCategory } from '../../shared/api.types';
+
+function stripWikiPrefix(relativePath: string): string {
+  return relativePath.replace(/^wiki\//, '');
+}
 
 export function IngestPage() {
+  const navigate = useNavigate();
   const activeProject = useProjectStore((s) => s.activeProject);
   const refreshStatus = useProjectStore((s) => s.refreshStatus);
   const refreshWikiPages = useWikiStore((s) => s.refreshPages);
+  const setActivePage = useWikiStore((s) => s.setActivePage);
   const addNotification = useAppStore((s) => s.addNotification);
 
   const phase = useIngestStore((s) => s.phase);
@@ -30,6 +37,7 @@ export function IngestPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [pendingStubs, setPendingStubs] = useState<PendingStub[]>([]);
+  const [creatingStub, setCreatingStub] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
 
   const loadFiles = useCallback(async () => {
@@ -83,6 +91,31 @@ export function IngestPage() {
       setPendingStubs((prev) => prev.filter((s) => s.slug !== slug));
     } catch {
       addNotification('error', 'Stub konnte nicht entfernt werden.');
+    }
+  };
+
+  const createStubPage = async (stub: PendingStub) => {
+    if (!activeProject) return;
+    setCreatingStub(stub.slug);
+    try {
+      const created = await api.wiki.createPage(activeProject, {
+        title: stub.title,
+        category: stub.category as WikiPageCategory,
+        path: stub.path,
+        sourcePath: stub.referencedBy[0],
+      });
+      setPendingStubs((prev) => prev.filter((s) => s.slug !== stub.slug));
+      await Promise.all([refreshWikiPages(), refreshStatus()]);
+      setActivePage(stripWikiPrefix(created.relativePath));
+      navigate('/wiki');
+      addNotification('success', `Stub "${stub.title}" als Wiki-Seite angelegt.`);
+    } catch (err) {
+      addNotification(
+        'error',
+        `Stub konnte nicht angelegt werden: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    } finally {
+      setCreatingStub(null);
     }
   };
 
@@ -212,14 +245,24 @@ export function IngestPage() {
                     </div>
                   )}
                 </div>
-                <button
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => deleteStub(stub.slug)}
-                  title="Diesen Stub entfernen — Seite wird nicht befuellt"
-                  style={{ flexShrink: 0, marginLeft: 8 }}
-                >
-                  Entfernen
-                </button>
+                <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginLeft: 8 }}>
+                  <button
+                    className="btn btn-primary btn-sm"
+                    onClick={() => createStubPage(stub)}
+                    disabled={creatingStub === stub.slug}
+                    title="Leere Wiki-Seite fuer diesen Stub anlegen"
+                  >
+                    {creatingStub === stub.slug ? 'Lege an...' : 'Anlegen'}
+                  </button>
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => deleteStub(stub.slug)}
+                    title="Diesen Stub entfernen - Seite wird nicht befuellt"
+                    disabled={creatingStub === stub.slug}
+                  >
+                    Entfernen
+                  </button>
+                </div>
               </div>
             ))}
           </div>

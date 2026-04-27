@@ -86,6 +86,21 @@ export function WelcomePage() {
     setLoading(false);
   };
 
+  const handleCreateDemoProject = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const project = await api.project.createDemo();
+      await loadProjects();
+      await setActiveProject(project.name);
+      addNotification('success', `Demo "${project.name}" erstellt`);
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+    setLoading(false);
+  };
+
   const stepIndex = step === 'api-key' ? 0 : step === 'git' ? 1 : 2;
 
   return (
@@ -179,9 +194,14 @@ export function WelcomePage() {
                 <option value="en">English</option>
               </select>
             </div>
-            <button className="btn btn-primary" onClick={handleCreateProject} disabled={loading || !projectName}>
-              {loading ? 'Erstelle...' : 'Projekt erstellen'}
-            </button>
+            <div className="welcome-actions">
+              <button className="btn btn-primary" onClick={handleCreateProject} disabled={loading || !projectName}>
+                {loading ? 'Erstelle...' : 'Projekt erstellen'}
+              </button>
+              <button className="btn btn-secondary" onClick={handleCreateDemoProject} disabled={loading}>
+                {loading ? 'Erstelle...' : 'Demo-Wissensraum'}
+              </button>
+            </div>
           </>
         )}
       </div>

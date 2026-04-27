@@ -6,6 +6,7 @@ import { useWikiStore } from '../../stores/wiki.store';
 import { useAppStore } from '../../stores/app.store';
 import { CreateProjectDialog } from '../shared/CreateProjectDialog';
 import { api } from '../../api/bridge';
+import type { WikiReviewItem, WikiReviewReason } from '../../../shared/api.types';
 
 const NAV_SECTION_DATA = [
   { to: '/raw', icon: '\u2191', label: 'Rohdaten' },
@@ -28,6 +29,10 @@ const NAV_SECTION_IDENTITY = [
 
 const NAV_SECTION_OUTPUT = [
   { to: '/output', icon: '\u25A4', label: 'Outputs' },
+];
+
+const NAV_SECTION_SYSTEM = [
+  { to: '/changes', icon: '\u21C4', label: 'Aenderungen' },
 ];
 
 function groupByDirectory(pages: string[]): Map<string, string[]> {
@@ -56,17 +61,40 @@ function pageDisplayName(pagePath: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+type WikiFilter = 'all' | 'review' | WikiReviewReason;
+
+const WIKI_FILTERS: Array<{ id: WikiFilter; label: string }> = [
+  { id: 'all', label: 'Alle' },
+  { id: 'review', label: 'Review' },
+  { id: 'unreviewed', label: 'Offen' },
+  { id: 'seed', label: 'Seed' },
+  { id: 'stale', label: 'Stale' },
+];
+
+function buildReviewMap(items: WikiReviewItem[]): Map<string, WikiReviewItem> {
+  return new Map(items.map((item) => [item.path, item]));
+}
+
 function WikiSubNav() {
   const pages = useWikiStore((s) => s.pages);
+  const reviewQueue = useWikiStore((s) => s.reviewQueue);
+  const reviewLoading = useWikiStore((s) => s.reviewLoading);
+  const refreshReviewQueue = useWikiStore((s) => s.refreshReviewQueue);
   const activePage = useWikiStore((s) => s.activePage);
   const setActivePage = useWikiStore((s) => s.setActivePage);
   const searchQuery = useWikiStore((s) => s.searchQuery);
   const setSearchQuery = useWikiStore((s) => s.setSearchQuery);
   const loading = useWikiStore((s) => s.loading);
   const visiblePages = pages.filter((p) => !isSystemPage(p));
+  const reviewByPath = buildReviewMap(reviewQueue);
 
   // Standardmässig alle Ordner zugeklappt
   const [collapsedDirs, setCollapsedDirs] = useState<Set<string> | null>(null);
+  const [filter, setFilter] = useState<WikiFilter>('all');
+
+  useEffect(() => {
+    refreshReviewQueue();
+  }, [refreshReviewQueue]);
 
   useEffect(() => {
     if (collapsedDirs === null && visiblePages.length > 0) {
@@ -75,9 +103,18 @@ function WikiSubNav() {
       setCollapsedDirs(new Set(allDirs));
     }
   }, [visiblePages.length, collapsedDirs]);
-  const filtered = searchQuery
-    ? visiblePages.filter((p) => p.toLowerCase().includes(searchQuery.toLowerCase()))
-    : visiblePages;
+  const filtered = visiblePages
+    .filter((p) => {
+      if (filter === 'all') return true;
+      const reviewItem = reviewByPath.get(p);
+      if (!reviewItem) return false;
+      if (filter === 'review') return true;
+      return reviewItem.reasons.includes(filter);
+    })
+    .filter((p) => searchQuery
+      ? p.toLowerCase().includes(searchQuery.toLowerCase())
+      : true
+    );
 
   const grouped = groupByDirectory(filtered);
   const sortedDirs = [...grouped.keys()].sort();
@@ -102,8 +139,23 @@ function WikiSubNav() {
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
       />
+      <div className="wiki-subnav-filters" aria-label="Wiki-Filter">
+        {WIKI_FILTERS.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            className={filter === item.id ? 'active' : ''}
+            onClick={() => setFilter(item.id)}
+            title={item.id === 'review' ? `${reviewQueue.length} Seiten mit Review-Bedarf` : item.label}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
       {loading ? (
         <div className="wiki-subnav-info">Lade...</div>
+      ) : reviewLoading && filter !== 'all' ? (
+        <div className="wiki-subnav-info">Lade Review...</div>
       ) : filtered.length === 0 ? (
         <div className="wiki-subnav-info">Keine Seiten</div>
       ) : (
@@ -122,6 +174,7 @@ function WikiSubNav() {
                   title={page}
                 >
                   {pageDisplayName(page)}
+                  {reviewByPath.has(page) && <span className="wiki-subnav-review-dot" />}
                 </button>
               ));
             }
@@ -144,6 +197,7 @@ function WikiSubNav() {
                     title={page}
                   >
                     {pageDisplayName(page)}
+                    {reviewByPath.has(page) && <span className="wiki-subnav-review-dot" />}
                   </button>
                 ))}
               </div>
@@ -342,8 +396,9 @@ export function Sidebar() {
         <div className="sidebar-section-label">Output</div>
         {NAV_SECTION_OUTPUT.map(renderNavItem)}
 
-        {/* Einstellungen */}
+        {/* System */}
         <div className="sidebar-separator" />
+        {NAV_SECTION_SYSTEM.map(renderNavItem)}
         <NavLink to="/settings" className={({ isActive }) => isActive ? 'active' : ''}>
           <span className="nav-icon">{'\u2699'}</span>
           <span className="nav-label">Einstellungen</span>
