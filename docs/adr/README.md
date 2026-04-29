@@ -10,6 +10,9 @@ Chronologische Liste der wichtigsten Architektur- und Feature-Entscheidungen fue
 | [0004](0004-takeaway-diskussion-in-memory.md) | Takeaway-Diskussion nur in-memory | Accepted | 2026-04-17 |
 | [0005](0005-persistenter-search-index.md) | Persistenter BM25-Search-Index | Accepted | 2026-04-17 |
 | [0006](0006-marp-slide-rendering.md) | In-App Marp-Slide-Rendering | Accepted | 2026-04-17 |
+| [0007](0007-wiki-review-workflow.md) | Frontmatter-gesteuerter Wiki Review Workflow | Accepted | 2026-04-29 |
+| [0008](0008-wiki-page-drafts.md) | Kategorie-basierte Wiki-Seitenanlage | Accepted | 2026-04-29 |
+| [0009](0009-ask-streaming-api.md) | ask() Migration auf Streaming API | Accepted | 2026-04-29 |
 
 ## Wann eine neue ADR schreiben
 
